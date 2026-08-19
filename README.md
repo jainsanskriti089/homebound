@@ -14,10 +14,6 @@ Under the hood, it's a real dive into OAuth2 authentication, background job sche
 - Sends a push notification on exit
 - Uses a two-tier adaptive polling schedule (infrequent baseline polling, more frequent polling during an expected departure window) to balance real-time accuracy against API usage
 
-## Status
-
-🚧 In progress — Week 1 of a 3-week build. Auth, token management, and vehicle API access are working end-to-end. Geofence detection and notifications are in progress.
-
 ## Architecture
 
 ```
