@@ -74,3 +74,37 @@ async def callback(request: Request):
     save_tokens(user_id, tokens)
 
     return {"status": "authorized", "tokens_received": list(tokens.keys())}
+
+from datetime import datetime, timezone, timedelta
+from db import get_tokens, save_tokens
+
+async def refresh_access_token(user_id: int):
+    stored = get_tokens(user_id)
+    if stored is None:
+        raise ValueError("No stored tokens for this user - they need to /login first")
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "client_id": CLIENT_ID,
+                "refresh_token": stored["refresh_token"]
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+    if response.status_code != 200:
+        raise RuntimeError(f"Token refresh failed: {response.text}")
+
+    new_tokens = response.json()
+    save_tokens(user_id, new_tokens)
+    return new_tokens["access_token"]
+
+async def get_valid_access_token(user_id: int):
+    stored = get_tokens(user_id)
+    if stored is None:
+        raise ValueError("No stored tokens for this user - they need to /login first")
+
+    if datetime.now(timezone.utc) >= stored["expires_at"] - timedelta(seconds=60):
+        return await refresh_access_token(user_id)
+
+    return stored["access_token"]
