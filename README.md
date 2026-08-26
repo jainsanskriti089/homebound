@@ -16,20 +16,7 @@ Under the hood, it's a real dive into OAuth2 authentication, background job sche
 
 ## Architecture
 
-```
-homebound/
-├── main.py              # FastAPI app entry point, route registration
-├── auth.py               # Tesla OAuth: login, callback, token refresh
-├── vehicle.py             # Vehicle data API calls (list vehicles, location)
-├── db.py                 # SQLite persistence (users, tokens, locations, events)
-├── scripts/
-│   └── partner_setup.py  # One-time app-level region registration with Tesla
-├── requirements.txt
-├── .env                   # Local secrets (gitignored)
-└── .gitignore
-```
-
-**Why this structure:** OAuth logic, vehicle API calls, and persistence are kept in separate modules rather than one large file, using FastAPI's router pattern — makes each piece independently testable and keeps `main.py` as a thin entry point.
+OAuth logic, vehicle API calls, and persistence are kept in separate modules rather than one large file, using FastAPI's router pattern — makes each piece independently testable and keeps `main.py` as a thin entry point.
 
 ## Tech stack
 
