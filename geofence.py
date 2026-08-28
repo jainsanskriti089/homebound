@@ -1,4 +1,5 @@
 import math
+from db import record_reading, get_recent_readings, log_geofence_event, get_last_confirmed_state
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000
@@ -25,3 +26,33 @@ def is_within_geofence(
 ) -> bool:
     distance = haversine_distance(vehicle_lat, vehicle_lon, location_lat, location_lon)
     return distance <= radius_m
+
+def check_and_log_transition(location_id: int, is_inside: bool):
+    """Records this reading and, if it represents a confirmed state change
+    (2 consecutive matching readings), logs the event and returns the event type.
+    Returns None if there's no confirmed transition to act on."""
+
+    record_reading(location_id, is_inside)
+    last_confirmed = get_last_confirmed_state(location_id)
+
+    if last_confirmed is None:
+        # first ever reading for this location — establish a baseline silently,
+        # don't treat it as a "transition" worth notifying on
+        event_type = "entered" if is_inside else "exited"
+        log_geofence_event(location_id, event_type)
+        print(f"Initialized baseline state: {event_type}")
+        return None
+
+    if is_inside == last_confirmed:
+        return None  # no change from last confirmed state
+
+    # state appears to have changed — require 2 consecutive matching readings before confirming
+    recent = get_recent_readings(location_id, limit=2)
+    if len(recent) >= 2 and all(r["is_inside"] == int(is_inside) for r in recent):
+        event_type = "entered" if is_inside else "exited"
+        log_geofence_event(location_id, event_type)
+        print(f"Confirmed transition: {event_type}")
+        return event_type
+
+    print(f"Possible transition detected, waiting for confirmation ({'inside' if is_inside else 'outside'})")
+    return None

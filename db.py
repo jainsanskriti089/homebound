@@ -44,6 +44,13 @@ def init_db():
             event_type TEXT NOT NULL,
             occurred_at TIMESTAMP NOT NULL
         );
+
+        CREATE TABLE IF NOT EXISTS location_readings (
+            id INTEGER PRIMARY KEY,
+            location_id INTEGER REFERENCES saved_locations(id),
+            is_inside INTEGER NOT NULL,
+            recorded_at TIMESTAMP NOT NULL
+        );
     """)
     conn.commit()
     conn.close()
@@ -130,3 +137,48 @@ def get_saved_locations(user_id: int):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def record_reading(location_id: int, is_inside: bool):
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO location_readings (location_id, is_inside, recorded_at) VALUES (?, ?, ?)",
+        (location_id, int(is_inside), datetime.now(timezone.utc).isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+def get_recent_readings(location_id: int, limit: int = 2):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT * FROM location_readings WHERE location_id = ? ORDER BY id DESC LIMIT ?",
+        (location_id, limit)
+    )
+    rows = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return rows
+
+def log_geofence_event(location_id: int, event_type: str):
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO geofence_events (location_id, event_type, occurred_at) VALUES (?, ?, ?)",
+        (location_id, event_type, datetime.now(timezone.utc).isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+def get_last_confirmed_state(location_id: int):
+    """Returns True (inside), False (outside), or None if no events logged yet."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT event_type FROM geofence_events WHERE location_id = ? ORDER BY id DESC LIMIT 1",
+        (location_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    if row is None:
+        return None
+    return row["event_type"] == "entered"
