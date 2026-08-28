@@ -34,7 +34,8 @@ def init_db():
             name TEXT NOT NULL,
             latitude REAL NOT NULL,
             longitude REAL NOT NULL,
-            radius_m INTEGER NOT NULL
+            radius_m INTEGER NOT NULL,
+            UNIQUE(user_id, name)
         );
 
         CREATE TABLE IF NOT EXISTS geofence_events (
@@ -100,3 +101,32 @@ def get_tokens(user_id: int):
         "refresh_token": row["refresh_token"],
         "expires_at": datetime.fromisoformat(row["expires_at"]),
     }
+
+def add_saved_location(user_id: int, name: str, latitude: float, longitude: float, radius_m: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO saved_locations (user_id, name, latitude, longitude, radius_m)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, name, latitude, longitude, radius_m))
+        conn.commit()
+        location_id = cursor.lastrowid
+    except sqlite3.IntegrityError:
+        cursor.execute(
+            "SELECT id FROM saved_locations WHERE user_id = ? AND name = ?",
+            (user_id, name)
+        )
+        location_id = cursor.fetchone()["id"]
+    finally:
+        conn.close()
+
+    return location_id
+
+def get_saved_locations(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM saved_locations WHERE user_id = ?", (user_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
