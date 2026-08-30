@@ -1,13 +1,6 @@
-"""
-Quick test script: confirms the currently-stored account's tokens can
-successfully list vehicles via the Tesla Fleet API.
-
-Run this after any new /login authorization to confirm the flow worked
-end-to-end and real vehicle data comes back.
-
-Usage:
-    python test_list_vehicles.py
-"""
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import asyncio
 from dotenv import load_dotenv

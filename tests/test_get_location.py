@@ -1,4 +1,7 @@
-# test_get_location.py
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 import asyncio
 from dotenv import load_dotenv
 load_dotenv()
