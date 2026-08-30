@@ -52,6 +52,7 @@ def init_db():
             recorded_at TIMESTAMP NOT NULL
         );
     """)
+    
     conn.commit()
     conn.close()
 

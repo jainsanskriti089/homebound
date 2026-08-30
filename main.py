@@ -18,3 +18,9 @@ app.include_router(auth_router)
 @app.get("/")
 def root():
     return {"status": "homebound backend is running"}
+
+from scheduler import start_scheduler
+
+@app.on_event("startup")
+async def on_startup():
+    start_scheduler()
