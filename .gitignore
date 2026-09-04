@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 homebound.db
 .vscode
+homebound.log

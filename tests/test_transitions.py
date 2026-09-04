@@ -2,28 +2,64 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import pytest
 import asyncio
-from dotenv import load_dotenv
-load_dotenv()
-
-from db import get_or_create_default_user, get_saved_locations
-from geofence import check_and_log_transition
+import db as db_module
 
 
-async def main():
-    user_id = get_or_create_default_user()
-    location = get_saved_locations(user_id)[0]
-    location_id = location["id"]
-    location_name = location["name"]
+@pytest.fixture
+def test_db(tmp_path, monkeypatch):
+    """Points db.py at a temporary, throwaway SQLite file for the duration of each test,
+    so tests never touch your real homebound.db."""
+    test_db_path = tmp_path / "test_homebound.db"
+    monkeypatch.setattr(db_module, "DB_PATH", str(test_db_path))
+    db_module.init_db()
 
-    # Simulated sequence: inside, inside, outside (jitter - single blip), inside, outside, outside (real exit)
-    sequence = [True, True, False, True, False, False]
-
-    for i, is_inside in enumerate(sequence):
-        print(f"\nReading {i+1}: {'inside' if is_inside else 'outside'}")
-        result = await check_and_log_transition(location_id, is_inside, location_name)
-        if result:
-            print(f"  >>> EVENT FIRED: {result}")
+    from db import add_saved_location
+    location_id = add_saved_location(
+        user_id=1, name="Test Location", latitude=37.3382, longitude=-121.8863, radius_m=100
+    )
+    return location_id
 
 
-asyncio.run(main())
+def test_single_jitter_blip_does_not_fire(test_db, monkeypatch):
+    """A single outside reading surrounded by inside readings should never fire an event."""
+    import geofence
+
+    async def fake_notify(message, title="Homebound"):
+        pass  # don't actually send real notifications during tests
+
+    monkeypatch.setattr(geofence, "notify", fake_notify)
+
+    async def run():
+        results = []
+        sequence = [True, True, False, True]  # single blip, no confirmed exit
+        for is_inside in sequence:
+            result = await geofence.check_and_log_transition(test_db, is_inside, "Test Location")
+            results.append(result)
+        return results
+
+    results = asyncio.run(run())
+    assert all(r is None for r in results), "No event should fire from a single jitter blip"
+
+
+def test_confirmed_exit_fires_exactly_once(test_db, monkeypatch):
+    """Two consecutive outside readings should fire exactly one 'exited' event."""
+    import geofence
+
+    async def fake_notify(message, title="Homebound"):
+        pass
+
+    monkeypatch.setattr(geofence, "notify", fake_notify)
+
+    async def run():
+        results = []
+        sequence = [True, True, False, False]  # confirmed exit on the 4th reading
+        for is_inside in sequence:
+            result = await geofence.check_and_log_transition(test_db, is_inside, "Test Location")
+            results.append(result)
+        return results
+
+    results = asyncio.run(run())
+    fired_events = [r for r in results if r is not None]
+    assert fired_events == ["exited"], "Exactly one 'exited' event should fire, on the 4th reading"

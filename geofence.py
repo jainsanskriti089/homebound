@@ -1,6 +1,9 @@
 import math
 from db import record_reading, get_recent_readings, log_geofence_event, get_last_confirmed_state
 from notifications import notify
+import logging
+
+logger = logging.getLogger(__name__)
 
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371000
@@ -35,7 +38,7 @@ async def check_and_log_transition(location_id: int, is_inside: bool, location_n
     if last_confirmed is None:
         event_type = "entered" if is_inside else "exited"
         log_geofence_event(location_id, event_type)
-        print(f"Initialized baseline state: {event_type}")
+        logger.info(f"Initialized baseline state: {event_type}")
         return None
 
     if is_inside == last_confirmed:
@@ -45,12 +48,12 @@ async def check_and_log_transition(location_id: int, is_inside: bool, location_n
     if len(recent) >= 2 and all(r["is_inside"] == int(is_inside) for r in recent):
         event_type = "entered" if is_inside else "exited"
         log_geofence_event(location_id, event_type)
-        print(f"Confirmed transition: {event_type}")
+        logger.info(f"Confirmed transition: {event_type}")
 
         if event_type == "exited":
             await notify(f"Vehicle left {location_name}")
 
         return event_type
 
-    print(f"Possible transition detected, waiting for confirmation ({'inside' if is_inside else 'outside'})")
+    logger.info(f"Possible transition detected, waiting for confirmation ({'inside' if is_inside else 'outside'})")
     return None

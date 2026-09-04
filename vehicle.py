@@ -3,6 +3,9 @@ import httpx
 from auth import get_valid_access_token
 import asyncio
 
+import logging
+logger = logging.getLogger(__name__)
+
 API_BASE = os.getenv("TESLA_API_BASE")
 
 class VehicleUnavailableError(Exception):
@@ -60,21 +63,21 @@ async def get_vehicle_location(user_id: int, vehicle_id: str, max_wake_attempts:
         raise ValueError(f"Vehicle {vehicle_id} not found for this user")
 
     if vehicle["state"] != "online":
-        print(f"Vehicle state is '{vehicle['state']}' — sending wake request")
+        logger.info(f"Vehicle state is '{vehicle['state']}' — sending wake request")
         await wake_vehicle(user_id, vehicle_id)
 
         for attempt in range(max_wake_attempts):
             await asyncio.sleep(wait_seconds)
             vehicles = await list_vehicles(user_id)
             vehicle = next((v for v in vehicles if str(v["id"]) == str(vehicle_id)), None)
-            print(f"  attempt {attempt + 1}: state = {vehicle['state']}")
+            logger.debug(f"  attempt {attempt + 1}: state = {vehicle['state']}")
             if vehicle["state"] == "online":
-                print(f"Vehicle woke up after {attempt + 1} check(s)")
+                logger.info(f"Vehicle woke up after {attempt + 1} check(s)")
                 break
         else:
             raise VehicleUnavailableError(f"Vehicle did not wake up in time (last state: {vehicle['state']})")
 
     data = await get_vehicle_data(user_id, vehicle_id)
-    print("Full drive_state:", data.get("drive_state"))
+    logger.debug("Full drive_state:", data.get("drive_state"))
     drive_state = data["drive_state"]
     return drive_state["latitude"], drive_state["longitude"]

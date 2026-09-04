@@ -6,6 +6,16 @@ from auth import router as auth_router
 from db import init_db
 import os
 
+import logging
+logging.basicConfig(
+    level=logging.INFO, 
+    formal="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler("homebound.log"),
+        logging.StreamHandler(),
+    ],
+)
+
 print("CWD:", os.getcwd())
 print("CLIENT_ID:", repr(os.getenv("TESLA_CLIENT_ID")))
 print("REDIRECT_URI:", repr(os.getenv("TESLA_REDIRECT_URI")))
