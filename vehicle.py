@@ -5,6 +5,10 @@ import asyncio
 
 API_BASE = os.getenv("TESLA_API_BASE")
 
+class VehicleUnavailableError(Exception):
+    """Raised when the vehicle can't be reached right now (offline/asleep timeout) —
+    expected to happen periodically, not a real bug."""
+    pass
 
 async def list_vehicles(user_id: int):
     access_token = await get_valid_access_token(user_id)
@@ -46,6 +50,7 @@ async def get_vehicle_data(user_id: int, vehicle_id: str):
 
     if response.status_code != 200:
         raise RuntimeError(f"Vehicle data request failed: {response.text}")
+    
     return response.json()["response"]
 
 async def get_vehicle_location(user_id: int, vehicle_id: str, max_wake_attempts: int = 10, wait_seconds: int = 5):
@@ -67,7 +72,7 @@ async def get_vehicle_location(user_id: int, vehicle_id: str, max_wake_attempts:
                 print(f"Vehicle woke up after {attempt + 1} check(s)")
                 break
         else:
-            raise RuntimeError(f"Vehicle did not wake up in time (last state: {vehicle['state']})")
+            raise VehicleUnavailableError(f"Vehicle did not wake up in time (last state: {vehicle['state']})")
 
     data = await get_vehicle_data(user_id, vehicle_id)
     print("Full drive_state:", data.get("drive_state"))

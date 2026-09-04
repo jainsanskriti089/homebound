@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Homebound</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; background: #0f0f0f; color: #e5e5e5; }
+        h1 { font-size: 1.5rem; }
+        .card { background: #1a1a1a; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+        .label { color: #888; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .status-online { color: #4ade80; }
+        .status-asleep { color: #fbbf24; }
+        .status-offline { color: #f87171; }
+        .event { padding: 8px 0; border-bottom: 1px solid #2a2a2a; }
+        .event:last-child { border-bottom: none; }
+        .event-type { font-weight: 600; }
+        .event-time { color: #888; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <h1>🏠 Homebound</h1>
+    <div id="reauth-banner" class="card" style="display:none; background:#3a1a1a; border:1px solid #f87171;">
+    ⚠️ Re-authorization required —
+    <a href="/login" style="color:#f87171; font-weight:600;">click here to log in again</a>
+    </div>
+
+    <div class="card">
+        <div class="label">Vehicle Status</div>
+        <div id="vehicle-status">Loading...</div>
+    </div>
+
+    <div class="card">
+        <div class="label">Saved Locations</div>
+        <div id="locations">Loading...</div>
+    </div>
+
+    <div class="card">
+        <div class="label">Recent Activity</div>
+        <div id="events">Loading...</div>
+    </div>
+
+    <script>
+        async function refresh() {
+            const res = await fetch("/api/status");
+            const data = await res.json();
+            
+            document.getElementById("reauth-banner").style.display = data.needs_reauth ? "block" : "none";
+
+            const vehicleEl = document.getElementById("vehicle-status");
+            const stateClass = "status-" + (data.vehicle.state || "offline");
+            vehicleEl.innerHTML = `<span class="${stateClass}">●</span> ${data.vehicle.name || "No vehicle"} — ${data.vehicle.state || "unknown"}`;
+
+            const locationsEl = document.getElementById("locations");
+            locationsEl.innerHTML = data.locations.map(loc =>
+                `${loc.name} — ${loc.radius_m}m radius (${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)})`
+            ).join("<br>") || "No locations saved";
+
+            const eventsEl = document.getElementById("events");
+            eventsEl.innerHTML = data.recent_events.map(e =>
+                `<div class="event">
+                    <span class="event-type">${e.event_type === "exited" ? "🚗 Left" : "🏠 Arrived at"} ${e.location_name}</span><br>
+                    <span class="event-time">${new Date(e.occurred_at).toLocaleString()}</span>
+                </div>`
+            ).join("") || "No events yet";
+        }
+
+        refresh();
+        setInterval(refresh, 30000);
+    </script>
+</body>
+</html>

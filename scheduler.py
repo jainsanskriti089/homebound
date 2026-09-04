@@ -4,25 +4,28 @@ from db import get_or_create_default_user, get_saved_locations
 from vehicle import list_vehicles, get_vehicle_location
 from geofence import is_within_geofence, check_and_log_transition
 from datetime import datetime, time as dtime
+import logging
+from vehicle import VehicleUnavailableError
 
+logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 BASELINE_MINUTES = 15
 ACTIVE_MINUTES = 1 
 
 async def poll_vehicle_location():
-    print("\n--- Polling vehicle location ---")
+    logger.info("Starting poll cycle")
     try:
         user_id = get_or_create_default_user()
         vehicles = await list_vehicles(user_id)
 
         if not vehicles:
-            print("No vehicles found for this user — skipping poll")
+            logger.warning("No vehicles found for this user — skipping poll")
             return
 
         vehicle_id = vehicles[0]["id"]
         lat, lon = await get_vehicle_location(user_id, vehicle_id)
-        print(f"Vehicle currently at: {lat}, {lon}")
+        logger.info(f"Vehicle currently at: {lat}, {lon}")
 
         locations = get_saved_locations(user_id)
         any_active_window = False
@@ -34,11 +37,13 @@ async def poll_vehicle_location():
                 any_active_window = True
         adjust_polling_interval(any_active_window)
 
-    except Exception as e:
-        # a single failed poll (car offline, API hiccup, etc.) should never crash
-        # the whole scheduler — log it and let the next scheduled poll try again
-        print(f"Poll failed, will retry next cycle: {e}")
+    except VehicleUnavailableError as e:
+        # expected, recoverable — vehicle just isn't reachable this cycle
+        logger.warning(f"Poll failed, will retry next cycle: {e}", exc_info=True)
 
+    except Exception as e:
+        logger.error(f"Unexpected error during poll: {e}", exc_info=True)
+        
 def adjust_polling_interval(active: bool):
     target_minutes = ACTIVE_MINUTES if active else BASELINE_MINUTES
     job = scheduler.get_job("baseline_poll")

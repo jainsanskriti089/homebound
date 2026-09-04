@@ -7,7 +7,9 @@ from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 
 from db import get_or_create_default_user, save_tokens
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 CLIENT_ID = os.getenv("TESLA_CLIENT_ID")
@@ -93,6 +95,7 @@ async def refresh_access_token(user_id: int):
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
     if response.status_code != 200:
+        logger.error(f"Token refresh failed -- likely requires re-authorization: {response.text}")
         raise RuntimeError(f"Token refresh failed: {response.text}")
 
     new_tokens = response.json()

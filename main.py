@@ -24,3 +24,15 @@ from scheduler import start_scheduler
 @app.on_event("startup")
 async def on_startup():
     start_scheduler()
+
+from dashboard import router as dashboard_router
+app.include_router(dashboard_router)
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/dashboard")
+def dashboard():
+    return FileResponse("static/dashboard.html")
