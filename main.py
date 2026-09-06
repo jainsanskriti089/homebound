@@ -9,7 +9,7 @@ import os
 import logging
 logging.basicConfig(
     level=logging.INFO, 
-    formal="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.FileHandler("homebound.log"),
         logging.StreamHandler(),
