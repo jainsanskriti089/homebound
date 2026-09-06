@@ -35,6 +35,8 @@ def init_db():
             latitude REAL NOT NULL,
             longitude REAL NOT NULL,
             radius_m INTEGER NOT NULL,
+            expected_leave_start TEXT,
+            expected_leave_end TEXT,
             UNIQUE(user_id, name)
         );
 
