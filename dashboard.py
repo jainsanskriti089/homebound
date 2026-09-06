@@ -47,3 +47,40 @@ async def get_status():
         "locations": locations,
         "recent_events": recent_events,
     }
+
+from pydantic import BaseModel
+from db import add_saved_location
+
+
+class SavedLocationInput(BaseModel):
+    name: str
+    latitude: float
+    longitude: float
+    radius_m: int
+    expected_leave_start: str | None = None  # e.g. "17:00"
+    expected_leave_end: str | None = None
+
+
+@router.post("/api/locations")
+async def create_location(location: SavedLocationInput):
+    user_id = get_or_create_default_user()
+
+    location_id = add_saved_location(
+        user_id=user_id,
+        name=location.name,
+        latitude=location.latitude,
+        longitude=location.longitude,
+        radius_m=location.radius_m,
+    )
+
+    # set the expected window if provided, since add_saved_location doesn't currently take it
+    if location.expected_leave_start and location.expected_leave_end:
+        conn = get_connection()
+        conn.execute(
+            "UPDATE saved_locations SET expected_leave_start = ?, expected_leave_end = ? WHERE id = ?",
+            (location.expected_leave_start, location.expected_leave_end, location_id)
+        )
+        conn.commit()
+        conn.close()
+
+    return {"status": "created", "location_id": location_id}
